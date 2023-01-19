@@ -80,7 +80,7 @@ func writeConfig(config Config) (Config, error) {
 	return oldConfig, nil
 }
 
-func uploadFile(filePath, url, username, password string) error {
+func uploadFile(filePath, url, username, password string, tag *string) error {
 	if _, err := os.Stat(filePath); err != nil {
 		return err
 	}
@@ -89,6 +89,15 @@ func uploadFile(filePath, url, username, password string) error {
 
 	body := new(bytes.Buffer)
 	writer := multipart.NewWriter(body)
+
+	if *tag != "" {
+		fieldWriter, err := writer.CreateFormField("tags")
+		if err != nil {
+			return err
+		}
+		fieldWriter.Write([]byte(*tag))
+	}
+
 	fileWriter, err := writer.CreateFormFile("document", filename)
 	if err != nil {
 		return err
@@ -188,7 +197,7 @@ func loginAndSaveConfig() {
 	}
 }
 
-func uploadFiles(filePaths []string) {
+func uploadFiles(filePaths []string, tag *string) {
 	config, err := readConfig()
 
 	if err != nil {
@@ -201,7 +210,7 @@ func uploadFiles(filePaths []string) {
 	}
 	for i := 0; i < files; i++ {
 		filePath := filePaths[i]
-		err := uploadFile(filePath, config.url, config.username, config.password)
+		err := uploadFile(filePath, config.url, config.username, config.password, tag)
 		if err != nil {
 			fmt.Println("ERROR", err.Error())
 		}
@@ -210,12 +219,13 @@ func uploadFiles(filePaths []string) {
 
 func main() {
 	var login = flag.Bool("login", false, "Provide credentials to Paperless")
+	var tag = flag.String("tag", "", "A tag to set on the uploaded file")
 
 	flag.Parse()
 
 	if *login {
 		loginAndSaveConfig()
 	} else {
-		uploadFiles(flag.Args())
+		uploadFiles(flag.Args(), tag)
 	}
 }
