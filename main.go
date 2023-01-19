@@ -120,7 +120,6 @@ func allTags(config Config) ([]PaperlessTag, error) {
 
 func findTag(tags []PaperlessTag, tag string) uint64 {
 	for _, v := range tags {
-		fmt.Printf("Search Tag %s with ID %d", v.Name, v.Id)
 		if v.Name == tag {
 			return v.Id
 		}
@@ -169,7 +168,6 @@ func ensureTag(config Config, tagName string) (uint64, error) {
 		fmt.Println("Error reading tags")
 		return 0, err
 	}
-	fmt.Printf("Len %d", len(tags))
 	tagId = findTag(tags, tagName)
 	if tagId == 0 {
 		return createTag(config, tagName)
@@ -177,7 +175,7 @@ func ensureTag(config Config, tagName string) (uint64, error) {
 	return tagId, nil
 }
 
-func uploadFile(filePath, url, username, password string, tagId uint64) error {
+func uploadFile(filePath string, config Config, tagId uint64) error {
 	if _, err := os.Stat(filePath); err != nil {
 		return err
 	}
@@ -205,12 +203,12 @@ func uploadFile(filePath, url, username, password string, tagId uint64) error {
 	io.Copy(fileWriter, bytes.NewReader(fileData))
 	writer.Close()
 
-	postReq, err := http.NewRequest("POST", url+"/api/documents/post_document/", body)
+	postReq, err := http.NewRequest("POST", config.url+"/api/documents/post_document/", body)
 	if err != nil {
 		return err
 	}
 	postReq.Header.Add("Accept", "application/json; version=2")
-	postReq.Header.Add("Authorization", "Basic "+encodeCredentials(username, password))
+	postReq.Header.Add("Authorization", "Basic "+encodeCredentials(config.username, config.password))
 
 	postReq.Header.Add("Content-Type", writer.FormDataContentType())
 	client := &http.Client{Timeout: 180 * time.Second}
@@ -313,7 +311,7 @@ func uploadFiles(filePaths []string, tag *string) {
 	}
 	for i := 0; i < files; i++ {
 		filePath := filePaths[i]
-		err := uploadFile(filePath, config.url, config.username, config.password, tagId)
+		err := uploadFile(filePath, config, tagId)
 		if err != nil {
 			fmt.Println("ERROR", err.Error())
 		}
