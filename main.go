@@ -47,7 +47,37 @@ func readConfig() (Config, error) {
 }
 
 func writeConfig(config Config) (Config, error) {
-	return config, nil
+	var file *ini.File
+	oldConfig, _ := readConfig()
+	oldConfig.url = config.url
+	oldConfig.username = config.username
+	oldConfig.password = config.password
+
+	userConfigDir, err := os.UserConfigDir()
+	if err != nil {
+		panic(err) // no good way to recover from this
+	}
+
+	iniFilePath := filepath.Join(userConfigDir, "paperless-uploader.ini")
+	file, err = ini.Load(iniFilePath)
+	if err != nil {
+		file = ini.Empty()
+	}
+
+	serverSection := file.Section("server")
+
+	serverSection.Key("url").SetValue(oldConfig.url)
+	serverSection.Key("username").SetValue(oldConfig.username)
+	serverSection.Key("password").SetValue(oldConfig.password)
+
+	err = file.SaveTo(iniFilePath)
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Println("Config successfully written to disk.")
+
+	return oldConfig, nil
 }
 
 func uploadFile(filePath, url, username, password string) error {
@@ -112,6 +142,7 @@ func testAPI(config Config) error {
 	if resp.StatusCode != 200 {
 		return fmt.Errorf("api_test_unsuccessful")
 	}
+	fmt.Println("Config successfully tested, writing to disk")
 	return nil
 }
 
@@ -148,26 +179,28 @@ func loginAndSaveConfig() {
 	if err != nil {
 		panic(err)
 	}
-	config := Config{url, username, password}
-	if testAPI(config) == nil {
-		writeConfig(config)
-	}
 
+	config := Config{url, username, password}
+	if err := testAPI(config); err == nil {
+		writeConfig(config)
+	} else {
+		panic(err)
+	}
 }
 
-func uploadFiles() {
+func uploadFiles(filePaths []string) {
 	config, err := readConfig()
 
 	if err != nil {
 		panic(err)
 	}
 
-	files := flag.NArg()
+	files := len(filePaths)
 	if files == 0 {
 		panic("No Files given")
 	}
 	for i := 0; i < files; i++ {
-		filePath := flag.Arg(i)
+		filePath := filePaths[i]
 		err := uploadFile(filePath, config.url, config.username, config.password)
 		if err != nil {
 			fmt.Println("ERROR", err.Error())
@@ -176,7 +209,6 @@ func uploadFiles() {
 }
 
 func main() {
-
 	var login = flag.Bool("login", false, "Provide credentials to Paperless")
 
 	flag.Parse()
@@ -184,6 +216,6 @@ func main() {
 	if *login {
 		loginAndSaveConfig()
 	} else {
-		uploadFiles()
+		uploadFiles(flag.Args())
 	}
 }

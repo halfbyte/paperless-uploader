@@ -17,9 +17,13 @@ username = "your paperless username"
 password = "your paperless password"
 ```
 
-Later on there will be a function to create this file through a dialog, but right now it is not possible to do that
+Alternatively, you can run `paperless-uploader --login` and it will ask you for your instance and login details and write them to the config file.
+
+**please note that this saves the password to your instance in cleartext.**
 
 After creating this file, you can upload files to paperless by just calling `paperless-uploader path/to/file`
+
+You can provide more than one file and all of them are going to be uploaded.
 
 ## Status, Goals
 
